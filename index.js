@@ -8,16 +8,12 @@ app.listen(process.env.PORT || 3000, () => {
     console.log('Servidor web rodando.');
 });
 
-// Configuração do Bot com permissão para ler mensagens (Intents)
+// Configuração do Bot
 const client = new Client({ 
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ] 
+    intents: [GatewayIntentBits.Guilds] 
 });
 
-// Lista Completa de Comandos
+// Lista de Comandos
 const commands = [
     { name: 'criador', description: 'Descubra quem é o criador do bot.' },
     { name: 'niveldeaura', description: 'Mede o seu nível de aura.' },
@@ -50,7 +46,7 @@ client.once('ready', async () => {
     console.log(`Bot logado como ${client.user.tag}!`);
     const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     try {
-        console.log('Registrando todos os comandos...');
+        console.log('Registrando comandos...');
         await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
         console.log('Comandos registrados com sucesso!');
     } catch (error) {
@@ -121,47 +117,6 @@ client.on('interactionCreate', async interaction => {
             .setFooter({ text: 'CRIADO POR EMANUEL RATÃO' });
 
         await interaction.reply({ embeds: [geradorEmbed] });
-    }
-});
-
-// Evento: Integração com IA Gemini (Responde quando marcado)
-client.on('messageCreate', async message => {
-    if (message.author.bot) return;
-
-    if (message.mentions.has(client.user)) {
-        const textoDoUsuario = message.content.replace(`<@${client.user.id}>`, '').trim();
-        
-        if (textoDoUsuario.length === 0) {
-            return message.reply("Opa! Você me marcou, mas não disse nada. O que você quer?");
-        }
-
-        await message.channel.sendTyping();
-
-        try {
-            const apiKey = "AQ.Ab8RN6IE_qzuy3L1dMxS9vbkrz8kULTJX432m4YMMTk7WkvLEg";
-            const urlDaAPI = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`; 
-
-            const respostaDaAPI = await fetch(urlDaAPI, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: textoDoUsuario }] }]
-                })
-            });
-
-            const dados = await respostaDaAPI.json();
-            
-            let textoDaIA = "Desculpe, deu um erro ao tentar processar a resposta.";
-            if (dados.candidates && dados.candidates.length > 0) {
-                textoDaIA = dados.candidates[0].content.parts[0].text;
-            }
-            
-            await message.reply(textoDaIA);
-
-        } catch (erro) {
-            console.error(erro);
-            await message.reply("Eita, meus circuitos deram um curto-circuito tentando falar com o Google Gemini! Tente de novo.");
-        }
     }
 });
 
