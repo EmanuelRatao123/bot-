@@ -1,70 +1,55 @@
-const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
-const express = require('express');
+// Evento: Responder quando for marcado (Inteligência Artificial - Gemini)
+client.on('messageCreate', async message => {
+    // Ignora mensagens de outros bots
+    if (message.author.bot) return;
 
-// Servidor web básico para o Render não desligar o bot
-const app = express();
-app.get('/', (req, res) => res.send('Bot do Emanuel está online!'));
-app.listen(process.env.PORT || 3000, () => {
-    console.log('Servidor web rodando.');
-});
+    // Verifica se o bot foi mencionado
+    if (message.mentions.has(client.user)) {
+        
+        // Tira a menção da mensagem para enviar só o texto para a IA
+        const textoDoUsuario = message.content.replace(`<@${client.user.id}>`, '').trim();
+        
+        if (textoDoUsuario.length === 0) {
+            return message.reply("Opa! Você me marcou, mas não disse nada. O que você quer?");
+        }
 
-// Configuração do Bot
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+        // Informa que está pensando
+        await message.channel.sendTyping();
 
-const commands = [
-    {
-        name: 'criador',
-        description: 'Descubra quem é o criador do bot.',
-    },
-    {
-        name: 'niveldeaura',
-        description: 'Mede o seu nível de aura.',
-    },
-    {
-        name: 'eusoulegal',
-        description: 'Descubra se você é legal.',
-    }
-];
+        try {
+            const apiKey = "AQ.Ab8RN6IE_qzuy3L1dMxS9vbkrz8kULTJX432m4YMMTk7WkvLEg";
+            
+            // URL oficial da API do Gemini (Google AI Studio) usando o modelo Gemini 1.5 Flash
+            const urlDaAPI = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`; 
 
-client.once('ready', async () => {
-    console.log(`Bot logado como ${client.user.tag}!`);
-    
-    const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-    try {
-        console.log('Registrando comandos...');
-        await rest.put(
-            Routes.applicationCommands(client.user.id),
-            { body: commands },
-        );
-        console.log('Comandos registrados com sucesso!');
-    } catch (error) {
-        console.error('Erro ao registrar comandos:', error);
-    }
-});
+            const respostaDaAPI = await fetch(urlDaAPI, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{ text: textoDoUsuario }]
+                    }]
+                })
+            });
 
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+            const dados = await respostaDaAPI.json();
+            
+            // Busca o texto da resposta dentro da estrutura do Gemini
+            let textoDaIA = "Desculpe, deu um erro ao tentar processar a resposta.";
+            if (dados.candidates && dados.candidates.length > 0) {
+                textoDaIA = dados.candidates[0].content.parts[0].text;
+            }
+            
+            await message.reply(textoDaIA);
 
-    if (interaction.commandName === 'criador') {
-        await interaction.reply('Ah, o criador do bot? Ele é um cara bem legal! Segue ele no youtube? https://www.youtube.com/@Emanuel_Ratao');
-    }
-
-    if (interaction.commandName === 'niveldeaura') {
-        // Gera um número de 0 a 10.000.000
-        const aura = Math.floor(Math.random() * 10000001);
-        await interaction.reply(`Analisando, voce tem ${aura}% de aura!`);
-    }
-
-    if (interaction.commandName === 'eusoulegal') {
-        // 50% de chance para cada resposta
-        const isLegal = Math.random() < 0.5;
-        if (isLegal) {
-            await interaction.reply('Sim, muito!!');
-        } else {
-            await interaction.reply('Não. KKKKKKKKKKKKKKKKKKKKKKKKKKK!');
+        } catch (erro) {
+            console.error(erro);
+            await message.reply("Eita, meus circuitos deram um curto-circuito tentando falar com o Google Gemini! Tente de novo.");
         }
     }
 });
 
-// Conecta o bot usando o Token que você vai colocar no Render
+// Mantém o login no final
 client.login(process.env.TOKEN);
